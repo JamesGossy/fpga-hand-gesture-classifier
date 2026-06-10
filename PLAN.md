@@ -102,7 +102,7 @@ FPGA is a translation job.
 - [x] .gitignore
 - [x] requirements.txt
 - [x] GitHub Actions CI (runs unit tests on push and PR)
-- [ ] Install Quartus Prime Lite (manual, free from Intel)
+- [x] Install Quartus Prime Lite (manual, free from Intel)
 - [ ] Install Python env: `python -m venv .venv` then `pip install -r software/requirements.txt`
 
 ---
