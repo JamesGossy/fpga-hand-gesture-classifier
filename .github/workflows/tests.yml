@@ -1,0 +1,27 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Only the light deps are needed for the unit tests. The webcam libraries
+      # opencv and mediapipe are not tested here, so we skip them to keep CI fast.
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest torch numpy
+
+      - name: Run tests
+        run: pytest tests/ -v

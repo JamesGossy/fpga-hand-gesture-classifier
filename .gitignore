@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Recorded data can get large
+data/raw/*.csv
+
+# Trained model weights
+models/*.pt
+
+# Quartus build output
+hardware/quartus/db/
+hardware/quartus/incremental_db/
+hardware/quartus/output_files/
+hardware/quartus/*.qws
+*.rpt
+*.summary
+*.pof
+*.sof
+
+# Simulation output
+hardware/sim/work/
+hardware/sim/*.vcd
+hardware/sim/transcript
+hardware/sim/*.wlf
+
+# OS junk
+.DS_Store
+Thumbs.db
