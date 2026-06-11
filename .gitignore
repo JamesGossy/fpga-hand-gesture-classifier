@@ -8,24 +8,55 @@ env/
 # Recorded data can get large
 data/raw/*.csv
 
-# Trained model weights
+# Trained model weights. model_float.pt (13 KB) is kept so the demo runs on a
+# fresh clone; any other .pt experiments are ignored.
 models/*.pt
+!models/model_float.pt
 
-# Quartus build output
-hardware/quartus/db/
-hardware/quartus/incremental_db/
-hardware/quartus/output_files/
-hardware/quartus/*.qws
+# Quartus build output (the project dir is quartusD). The .qsys source and the
+# generated jtag_comms/ HDL are kept so the project builds without re-running
+# Platform Designer; only the transient build dirs and locks are ignored.
+hardware/quartusD/db/
+hardware/quartusD/incremental_db/
+hardware/quartusD/output_files/
+hardware/quartusD/.qsys_edit/
+hardware/quartusD/*.qws
+hardware/quartusD/*.bak
+hardware/quartusD/simulation/
+hardware/quartusD/serv_req_info.txt
+hardware/quartusD/qar_info.json
+
+# Platform Designer generated metadata. The .qsys source and the
+# jtag_comms/synthesis HDL are kept (the build needs them); these are just
+# symbols, reports, templates, and descriptors that regenerate from the .qsys.
+hardware/quartusD/jtag_comms.sopcinfo
+hardware/quartusD/jtag_comms/*.bsf
+hardware/quartusD/jtag_comms/*.cmp
+hardware/quartusD/jtag_comms/*.html
+hardware/quartusD/jtag_comms/*.xml
+hardware/quartusD/jtag_comms/*_bb.v
+hardware/quartusD/jtag_comms/*_inst.v
+hardware/quartusD/jtag_comms/*_inst.vhd
+hardware/quartusD/jtag_comms/*.rpt
+hardware/quartusD/jtag_comms/synthesis/*.debuginfo
 *.rpt
 *.summary
 *.pof
 *.sof
+*.flock
+hs_err_pid*.log
 
-# Simulation output
+# Simulation output and generated files. The run scripts copy the weight ROMs
+# in and regenerate the golden memory files, so those are not committed here
+# (the sources live in models/weights_q4_12 and data/golden_vectors.json).
 hardware/sim/work/
 hardware/sim/*.vcd
 hardware/sim/transcript
 hardware/sim/*.wlf
+hardware/sim/*.vvp
+hardware/sim/layer*.hex
+hardware/sim/golden_*.hex
+hardware/sim/glue_packet.hex
 
 # OS junk
 .DS_Store
