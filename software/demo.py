@@ -56,7 +56,7 @@ def main():
     model = load_model()
 
     hands = mp.solutions.hands.Hands(
-        max_num_hands=1,
+        max_num_hands=2,
         min_detection_confidence=0.7,
         min_tracking_confidence=0.7,
     )

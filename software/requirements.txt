@@ -1,5 +1,7 @@
+# Python 3.12 only. mediapipe has no wheels for 3.13+ and an unpinned install
+# can pull a stub package that lacks the solutions API, so the version is fixed.
+mediapipe==0.10.21
+numpy<2
 opencv-python
-mediapipe
-numpy
 torch
 pyserial

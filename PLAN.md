@@ -131,7 +131,20 @@ Capture tips:
 
 ---
 
-### Phase 2 - Quantization and fixed-point reference (todo)
+### Phase 2 - Quantization and fixed-point reference (done)
+
+- [x] software/fixed_point.py: integer-only forward pass, Q4.12 16-bit signed.
+- [x] software/export_weights.py: model_float.pt -> .mif/.hex in models/weights_q4_12/.
+- [x] data/golden_vectors.json: 40 real inputs with expected class and logits.
+- [x] Fixed point accuracy matches float exactly (0.9945 on the full set).
+- [x] Unit tests for the fixed point math and golden vector reproduction.
+
+Note on dynamic range: plain Q4.12 alone dropped accuracy to 0.93 because the
+hidden activations grow past the +-8 range (h2 reached ~14, logits ~49) and
+saturated. The fix is a per-layer power-of-two right shift after each layer,
+folded into the same accumulator shift. Shifts are [0, 1, 2] for the three
+layers. This recovers full float accuracy and is a plain wire in Verilog. The
+shifts are recorded in golden_vectors.json so the FPGA uses the same values.
 
 1. Implement software/fixed_point.py: an integer-only forward pass that mirrors
    exactly what the FPGA will do. Format is Q4.12, 16-bit signed.

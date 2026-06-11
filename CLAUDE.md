@@ -2,6 +2,27 @@
 
 This file tells Claude Code how to work in this repo. Read PLAN.md for the full project plan.
 
+## Comments
+- No AI-sounding language. Plain, direct English only.
+- No em dashes anywhere (not in comments, not in strings, not in docs).
+- Default: no comments. Only add one when the WHY is non-obvious — a hidden constraint, a subtle invariant, a workaround for a known bug.
+- Strongly prefer inline comments (`// ...` at end of line) over standalone lines.
+- File top: a short block comment is allowed (2-5 lines max). Describe what the file does and any key design constraint. Not a list of functions.
+- Function top: one short line is allowed if the function is non-obvious. No multi-line docstrings.
+- Logic blocks: one short standalone comment above a new logical stage is allowed (e.g. `// feedforward from curvature`). Keep these to one line.
+- Never describe WHAT the code does. Only WHY it does something non-obvious.
+
+## Section dividers
+- Split long files into named sections with: `/* ---- section name ---- */`
+- Use these in headers too (e.g. `/* ---- steering ---- */`, `/* ---- torque vectoring ---- */`).
+- In long functions, number the main steps: `// 1. project onto line`, `// 2. Stanley feedback`, etc.
+
+## C formatting
+- clang-format, WebKit-based. Run `make format` before committing.
+- Allman braces on functions, attached on control flow.
+- 4-space indent, 100-col line limit.
+- Do not hand-align operands inside expressions — clang-format will normalise it.
+
 ## What this project is
 
 A hand gesture classifier. The laptop reads the webcam, finds hand landmarks with

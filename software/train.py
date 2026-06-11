@@ -24,8 +24,18 @@ MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "model_floa
 
 HIDDEN_SIZE = 32
 LEARNING_RATE = 0.001
-EPOCHS = 200
-VAL_FRACTION = 0.2
+BATCH_SIZE = 32
+
+# Train fits the weights, val picks when to stop, test is the honest number we
+# report once at the end. The split is per class so every gesture keeps its
+# share in all three sets.
+TRAIN_FRACTION = 0.70
+VAL_FRACTION = 0.15
+
+# Early stopping. Train until val accuracy has not improved for this many
+# epochs, then keep the best weights. MAX_EPOCHS is just a safety cap.
+PATIENCE = 200
+MAX_EPOCHS = 3000
 
 
 class GestureNet(nn.Module):
@@ -65,14 +75,32 @@ def load_samples():
     return inputs, labels
 
 
-def split_train_val(inputs, labels):
-    """Shuffle, then peel off the validation fraction."""
-    pairs = list(zip(inputs, labels))
-    random.shuffle(pairs)
-    cut = int(len(pairs) * (1.0 - VAL_FRACTION))
-    train_pairs = pairs[:cut]
-    val_pairs = pairs[cut:]
-    return train_pairs, val_pairs
+def split_stratified(inputs, labels):
+    """
+    Split into train, val, and test. The split is done per class so each gesture
+    keeps its share in all three sets. This matters because the classes are not
+    the same size, so a plain random split could starve a small class in one set.
+    """
+    by_class = {}
+    for row, label in zip(inputs, labels):
+        by_class.setdefault(label, []).append(row)
+
+    train_pairs = []
+    val_pairs = []
+    test_pairs = []
+    for label, rows in by_class.items():
+        random.shuffle(rows)
+        train_cut = int(len(rows) * TRAIN_FRACTION)
+        val_cut = int(len(rows) * (TRAIN_FRACTION + VAL_FRACTION))
+        for row in rows[:train_cut]:
+            train_pairs.append((row, label))
+        for row in rows[train_cut:val_cut]:
+            val_pairs.append((row, label))
+        for row in rows[val_cut:]:
+            test_pairs.append((row, label))
+
+    random.shuffle(train_pairs)
+    return train_pairs, val_pairs, test_pairs
 
 
 def to_tensors(pairs):
@@ -89,6 +117,22 @@ def accuracy(model, x, y):
     return (guesses == y).float().mean().item()
 
 
+def train_one_epoch(model, optimizer, loss_function, train_x, train_y):
+    """Run one pass over the training data in mini-batches. Returns the last loss."""
+    model.train()
+    count = train_x.shape[0]
+    order = torch.randperm(count)  # reshuffle each epoch so batches vary
+    last_loss = 0.0
+    for start in range(0, count, BATCH_SIZE):
+        index = order[start:start + BATCH_SIZE]
+        optimizer.zero_grad()
+        loss = loss_function(model(train_x[index]), train_y[index])
+        loss.backward()
+        optimizer.step()
+        last_loss = loss.item()
+    return last_loss
+
+
 def main():
     random.seed(0)
     torch.manual_seed(0)
@@ -99,28 +143,50 @@ def main():
         return
     print("loaded", len(inputs), "samples")
 
-    train_pairs, val_pairs = split_train_val(inputs, labels)
+    train_pairs, val_pairs, test_pairs = split_stratified(inputs, labels)
     train_x, train_y = to_tensors(train_pairs)
     val_x, val_y = to_tensors(val_pairs)
+    test_x, test_y = to_tensors(test_pairs)
+    print("split:", len(train_pairs), "train,", len(val_pairs), "val,",
+          len(test_pairs), "test")
 
     model = GestureNet(len(GESTURES))
     loss_function = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-    for epoch in range(EPOCHS):
-        model.train()
-        optimizer.zero_grad()
-        loss = loss_function(model(train_x), train_y)
-        loss.backward()
-        optimizer.step()
+    # early stopping: keep the weights that scored best on val, stop when val
+    # has not improved for PATIENCE epochs
+    best_val = 0.0
+    best_state = None
+    epochs_since_best = 0
+
+    for epoch in range(MAX_EPOCHS):
+        loss = train_one_epoch(model, optimizer, loss_function, train_x, train_y)
+        val_accuracy = accuracy(model, val_x, val_y)
+
+        if val_accuracy > best_val:
+            best_val = val_accuracy
+            best_state = {k: v.clone() for k, v in model.state_dict().items()}
+            epochs_since_best = 0
+        else:
+            epochs_since_best = epochs_since_best + 1
 
         if (epoch + 1) % 20 == 0:
-            val_accuracy = accuracy(model, val_x, val_y)
-            print("epoch", epoch + 1, "loss", round(loss.item(), 4),
-                  "val accuracy", round(val_accuracy, 3))
+            print("epoch", epoch + 1, "loss", round(loss, 4),
+                  "val accuracy", round(val_accuracy, 3),
+                  "best", round(best_val, 3))
 
-    final_accuracy = accuracy(model, val_x, val_y)
-    print("final val accuracy", round(final_accuracy, 3))
+        if epochs_since_best >= PATIENCE:
+            print("no val gain for", PATIENCE, "epochs, stopping at epoch", epoch + 1)
+            break
+
+    # roll back to the best val weights before we report and save
+    model.load_state_dict(best_state)
+    print("best val accuracy", round(best_val, 3))
+
+    # test is touched once, here, so it is an honest held out number
+    test_accuracy = accuracy(model, test_x, test_y)
+    print("test accuracy", round(test_accuracy, 3))
 
     os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
     torch.save(model.state_dict(), MODEL_PATH)
