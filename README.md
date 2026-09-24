@@ -18,27 +18,18 @@ A five-gesture classifier with a neural network implemented in Verilog on a DE10
 - **Board interface:** a packet controller and JTAG UART connect the classifier to Python through a local TCP/Tcl bridge in Quartus System Console.
 
 ```mermaid
-flowchart TB
-    camera["Webcam & MediaPipe"]
-    features["Normalise 21 landmarks<br/>Quantise 42 coordinates to Q4.12"]
-    bridge["Python & System Console bridge"]
+flowchart LR
+    laptop["Laptop<br/>Webcam → hand landmarks"]
+    fpga["DE10-Lite<br/>Fixed-point neural network"]
+    result["Laptop<br/>Display gesture"]
 
-    subgraph fpga["DE10-Lite · Intel MAX 10"]
-        interface["JTAG UART & packet controller"]
-        network["Fixed-point MLP<br/>42 → 32 → 32 → 5"]
-        result["Argmax & class LEDs"]
-        interface --> network --> result
-    end
-
-    camera --> features --> bridge
-    bridge -->|85-byte input packet| interface
-    result -->|Class response over JTAG| bridge
-    bridge --> overlay["Live prediction overlay"]
+    laptop -->|Landmarks over JTAG| fpga
+    fpga -->|Predicted class| result
 
     classDef host fill:#eef2ff,stroke:#6366f1,color:#1e1b4b
     classDef hardware fill:#ecfdf5,stroke:#059669,color:#064e3b
-    class camera,features,bridge,overlay host
-    class interface,network,result hardware
+    class laptop,result host
+    class fpga hardware
 ```
 
 ## Results
@@ -52,10 +43,30 @@ Reported results from the project's 2,348-sample dataset and DE10-Lite build:
 | RTL verification | Bit-exact comparison against 40 golden vectors |
 | Logic elements | 6,459 / 49,760 (13%) |
 | Embedded 9-bit multipliers | 6 / 288 (2%) |
-| MLP inference latency, simulated | ~27 µs |
-| Board round trip over JTAG, median | ~208 ms (~4.8 classifications/s) |
 
-Quantisation reduced accuracy by 0.43 percentage points. The JTAG link dominates end-to-end latency, so this setup does not accelerate the laptop webcam pipeline. The project demonstrates fixed-point inference in hardware and verification against a software reference. MediaPipe still runs on the laptop.
+Quantisation reduced accuracy by 0.43 percentage points.
+
+## Latency breakdown
+
+Reported timings for the same network, excluding webcam capture and MediaPipe:
+
+| Inference implementation | Time per classification |
+| --- | --- |
+| Laptop, PyTorch float | ~38 µs |
+| Laptop, pure-Python fixed-point | ~180 µs |
+| DE10-Lite MLP core, RTL simulation | ~27 µs |
+
+The board's communication overhead is much larger than its compute time:
+
+| Board round-trip component | Time |
+| --- | --- |
+| MLP inference, simulated | ~0.027 ms |
+| JTAG transfer, polling and host overhead, estimated from round trip | ~208 ms |
+| Full board round trip, measured median | ~208 ms |
+
+The overhead estimate subtracts the simulated inference time from the measured round trip; it is not a separate transfer measurement. At this precision, both round to 208 ms.
+
+The FPGA core is faster in these reported timings, but the USB-Blaster JTAG link limits the demo to about 4.8 classifications per second. Running the model on the laptop is faster end to end in this setup. A faster board interface would be needed to benefit from the FPGA's inference latency.
 
 ## Run it
 
